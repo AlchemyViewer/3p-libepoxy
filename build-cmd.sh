@@ -30,9 +30,9 @@ source_environment_tempfile="$stage/source_environment.sh"
 . "$source_environment_tempfile"
 
 EPOXY_VERSION="1.5.4"
-EPOXY_SOURCE_DIR="libepoxy"
+EPOXY_SOURCE_DIR="$top/libepoxy"
 
-VERSION_HEADER_FILE="$stage/include/epoxy/config.h"
+VERSION_HEADER_FILE="$EPOXY_SOURCE_DIR/_build_release/src/config.h"
 
 build=${AUTOBUILD_BUILD_ID:=0}
 
@@ -55,10 +55,18 @@ pushd "$EPOXY_SOURCE_DIR"
                 archflags="/arch:AVX"
             fi
 
-            meson build "_build" --prefix="${stage}"
+            meson "_build_debug" --prefix="$(cygpath -w ${stage})" --libdir="$(cygpath -w ${stage})/lib/debug" --bindir="$(cygpath -w ${stage})/lib/debug" \
+                --buildtype debug --debug
 
-            mkdir -p "_build"
-            pushd "_build"
+            pushd "_build_debug"
+                ninja
+                ninja install
+            popd
+
+            meson "_build_release" --prefix="$(cygpath -w ${stage})" --libdir="$(cygpath -w ${stage})/lib/release" --bindir="$(cygpath -w ${stage})/lib/release" \
+                --buildtype debugoptimized
+
+            pushd "_build_release"
                 ninja
                 ninja install
             popd
