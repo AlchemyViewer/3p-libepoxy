@@ -48,13 +48,6 @@ pushd "$EPOXY_SOURCE_DIR"
         windows*)
             load_vsvars
 
-            if [ "$AUTOBUILD_ADDRSIZE" = 32 ]
-            then
-                archflags=""
-            else
-                archflags="/arch:AVX"
-            fi
-
             meson "_build_debug" --prefix="$(cygpath -w ${stage})" --libdir="$(cygpath -w ${stage})/lib/debug" --bindir="$(cygpath -w ${stage})/lib/debug" \
                 --buildtype debug --debug
 
@@ -75,6 +68,67 @@ pushd "$EPOXY_SOURCE_DIR"
         "darwin")
         ;;
         linux*)
+            # Linux build environment at Linden comes pre-polluted with stuff that can
+            # seriously damage 3rd-party builds.  Environmental garbage you can expect
+            # includes:
+            #
+            #    DISTCC_POTENTIAL_HOSTS     arch           root        CXXFLAGS
+            #    DISTCC_LOCATION            top            branch      CC
+            #    DISTCC_HOSTS               build_name     suffix      CXX
+            #    LSDISTCC_ARGS              repo           prefix      CFLAGS
+            #    cxx_version                AUTOBUILD      SIGN        CPPFLAGS
+            #
+            # So, clear out bits that shouldn't affect our configure-directed build
+            # but which do nonetheless.
+            #
+            unset DISTCC_HOSTS CC CXX CFLAGS CPPFLAGS CXXFLAGS
+
+            # Default target per autobuild build --address-size
+            opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE}"
+			DEBUG_COMMON_FLAGS="$opts -Og -g -fPIC -DPIC"
+			RELEASE_COMMON_FLAGS="$opts -O3 -g -fPIC -DPIC -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+			DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS"
+			RELEASE_CFLAGS="$RELEASE_COMMON_FLAGS"
+            DEBUG_CXXFLAGS="$DEBUG_COMMON_FLAGS -std=c++17"
+			RELEASE_CXXFLAGS="$RELEASE_COMMON_FLAGS -std=c++17"
+            DEBUG_CPPFLAGS="-DPIC"
+			RELEASE_CPPFLAGS="-DPIC"
+            DEBUG_LDFLAGS="$opts"
+            RELEASE_LDFLAGS="$opts"
+
+            # Handle any deliberate platform targeting
+            if [ -z "${TARGET_CPPFLAGS:-}" ]; then
+                # Remove sysroot contamination from build environment
+                unset CPPFLAGS
+            else
+                # Incorporate special pre-processing flags
+                export CPPFLAGS="$TARGET_CPPFLAGS"
+            fi
+
+            CFLAGS="$DEBUG_CFLAGS" \
+                CXXFLAGS="$DEBUG_CXXFLAGS" \
+                CPPFLAGS="${CPPFLAGS:-} ${DEBUG_CPPFLAGS}" \
+                LDFLAGS="$DEBUG_LDFLAGS" \
+                meson "_build_debug" --prefix="${stage}" --libdir="${stage}/lib/debug" --bindir="${stage}/lib/debug" \
+                --optimization g --debug
+
+            pushd "_build_debug"
+                ninja
+                ninja install
+            popd
+
+
+            CFLAGS="$RELEASE_CFLAGS" \
+                CXXFLAGS="$RELEASE_CXXFLAGS" \
+                CPPFLAGS="${CPPFLAGS:-} ${RELEASE_CPPFLAGS}" \
+                LDFLAGS="$RELEASE_LDFLAGS" \
+                meson "_build_release" --prefix="${stage}" --libdir="${stage}/lib/release" --bindir="${stage}/lib/release" \
+                --optimization 3 --debug -Db_lto=true
+
+            pushd "_build_release"
+                ninja
+                ninja install
+            popd
         ;;
     esac
     mkdir -p "$stage/LICENSES"
