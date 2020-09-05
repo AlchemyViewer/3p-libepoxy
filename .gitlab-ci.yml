@@ -3,8 +3,8 @@ stages:
   - deploy
 
 variables:
-  AUTOBUILD_PACKAGE_DIR: libexpoy
-  AUTOBUILD_PACKAGE_NAME: libexpoy
+  AUTOBUILD_PACKAGE_DIR: libepoxy
+  AUTOBUILD_PACKAGE_NAME: libepoxy
   AUTOBUILD_BUILD_ID: $CI_PIPELINE_ID
 
 build:windows:
