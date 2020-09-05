@@ -49,7 +49,7 @@ pushd "$EPOXY_SOURCE_DIR"
             load_vsvars
 
             meson "_build_debug" --prefix="$(cygpath -w ${stage})" --libdir="$(cygpath -w ${stage})/lib/debug" --bindir="$(cygpath -w ${stage})/lib/debug" \
-                --buildtype debug
+                --buildtype debug -Dtests=false
 
             pushd "_build_debug"
                 ninja
@@ -57,7 +57,7 @@ pushd "$EPOXY_SOURCE_DIR"
             popd
 
             meson "_build_release" --prefix="$(cygpath -w ${stage})" --libdir="$(cygpath -w ${stage})/lib/release" --bindir="$(cygpath -w ${stage})/lib/release" \
-                --buildtype debugoptimized
+                --buildtype debugoptimized -Dtests=false
 
             pushd "_build_release"
                 ninja
