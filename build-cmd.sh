@@ -49,7 +49,7 @@ pushd "$EPOXY_SOURCE_DIR"
             load_vsvars
 
             meson "_build_debug" --prefix="$(cygpath -w ${stage})" --libdir="$(cygpath -w ${stage})/lib/debug" --bindir="$(cygpath -w ${stage})/lib/debug" \
-                --buildtype debug --debug
+                --buildtype debug
 
             pushd "_build_debug"
                 ninja
