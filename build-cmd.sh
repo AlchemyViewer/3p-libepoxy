@@ -34,8 +34,6 @@ EPOXY_SOURCE_DIR="$top/libepoxy"
 
 VERSION_HEADER_FILE="$EPOXY_SOURCE_DIR/_build_release/src/config.h"
 
-build=${AUTOBUILD_BUILD_ID:=0}
-
 # Create the staging folders
 mkdir -p "$stage/lib"/{debug,release,relwithdebinfo}
 mkdir -p "$stage/include/epoxy"
@@ -142,4 +140,4 @@ version=`sed -n -E 's/#define PACKAGE_VERSION "([0-9])[.]([0-9])[.]([0-9]).*/\1.
 short="$(echo $version | cut -d"." -f1-2)"
 shortver="${short//.}"
 
-echo "${version}.${build}" > "${stage}/VERSION.txt"
+echo "${version}" > "${stage}/VERSION.txt"
