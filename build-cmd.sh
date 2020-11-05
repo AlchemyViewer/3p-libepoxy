@@ -63,34 +63,76 @@ pushd "$EPOXY_SOURCE_DIR"
             popd
         ;;
 
-        "darwin")
+        darwin*)
+            # Setup osx sdk platform
+            SDKNAME="macosx10.15"
+            export SDKROOT=$(xcodebuild -version -sdk ${SDKNAME} Path)
+            export MACOSX_DEPLOYMENT_TARGET=10.13
+
+            # Setup build flags
+            ARCH_FLAGS="-arch x86_64"
+            SDK_FLAGS="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET} --sysroot=${SDKROOT}"
+            DEBUG_COMMON_FLAGS="$ARCH_FLAGS $SDK_FLAGS -Og -g -msse4.2 -fPIC -DPIC"
+            RELEASE_COMMON_FLAGS="$ARCH_FLAGS $SDK_FLAGS -O3 -g -msse4.2 -fPIC -DPIC -fstack-protector-strong"
+            DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS"
+            RELEASE_CFLAGS="$RELEASE_COMMON_FLAGS"
+            DEBUG_CXXFLAGS="$DEBUG_COMMON_FLAGS -std=c++17"
+            RELEASE_CXXFLAGS="$RELEASE_COMMON_FLAGS -std=c++17"
+            DEBUG_CPPFLAGS="-DPIC"
+            RELEASE_CPPFLAGS="-DPIC"
+            DEBUG_LDFLAGS="$ARCH_FLAGS -headerpad_max_install_names"
+            RELEASE_LDFLAGS="$ARCH_FLAGS -headerpad_max_install_names"
+
+            CFLAGS="$DEBUG_CFLAGS" \
+            CXXFLAGS="$DEBUG_CXXFLAGS" \
+            CPPFLAGS="$DEBUG_CPPFLAGS" \
+            LDFLAGS="$DEBUG_LDFLAGS" \
+            meson "_build_debug" --prefix="${stage}" --libdir="${stage}/lib/debug" --bindir="${stage}/lib/debug" \
+                -Doptimization=g -Ddebug=true -Dtests=false
+
+            pushd "_build_debug"
+                ninja
+                ninja install
+            popd
+
+            CFLAGS="$RELEASE_CFLAGS" \
+            CXXFLAGS="$RELEASE_CXXFLAGS" \
+            CPPFLAGS="$RELEASE_CPPFLAGS" \
+            LDFLAGS="$RELEASE_LDFLAGS" \
+            meson "_build_release" --prefix="${stage}" --libdir="${stage}/lib/release" --bindir="${stage}/lib/release" \
+                -Doptimization=3 -Ddebug=true -Db_ndebug=true -Dtests=false
+
+            pushd "_build_release"
+                ninja
+                ninja install
+            popd
+
+            pushd "${stage}/lib/debug"
+                fix_dylib_id "libepoxy.dylib"
+                dsymutil libepoxy.0.dylib
+                strip -x -S libepoxy.0.dylib
+            popd
+
+            pushd "${stage}/lib/release"
+                fix_dylib_id "libepoxy.dylib"
+                dsymutil libepoxy.0.dylib
+                strip -x -S libepoxy.0.dylib
+            popd
+
         ;;
         linux*)
-            # Linux build environment at Linden comes pre-polluted with stuff that can
-            # seriously damage 3rd-party builds.  Environmental garbage you can expect
-            # includes:
-            #
-            #    DISTCC_POTENTIAL_HOSTS     arch           root        CXXFLAGS
-            #    DISTCC_LOCATION            top            branch      CC
-            #    DISTCC_HOSTS               build_name     suffix      CXX
-            #    LSDISTCC_ARGS              repo           prefix      CFLAGS
-            #    cxx_version                AUTOBUILD      SIGN        CPPFLAGS
-            #
-            # So, clear out bits that shouldn't affect our configure-directed build
-            # but which do nonetheless.
-            #
             unset DISTCC_HOSTS CC CXX CFLAGS CPPFLAGS CXXFLAGS
 
             # Default target per autobuild build --address-size
             opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE}"
-			DEBUG_COMMON_FLAGS="$opts -Og -g -fPIC -DPIC"
-			RELEASE_COMMON_FLAGS="$opts -O3 -g -fPIC -DPIC -fstack-protector-strong -D_FORTIFY_SOURCE=2"
-			DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS"
-			RELEASE_CFLAGS="$RELEASE_COMMON_FLAGS"
+            DEBUG_COMMON_FLAGS="$opts -Og -g -fPIC -DPIC"
+            RELEASE_COMMON_FLAGS="$opts -O3 -g -fPIC -DPIC -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+            DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS"
+            RELEASE_CFLAGS="$RELEASE_COMMON_FLAGS"
             DEBUG_CXXFLAGS="$DEBUG_COMMON_FLAGS -std=c++17"
-			RELEASE_CXXFLAGS="$RELEASE_COMMON_FLAGS -std=c++17"
+            RELEASE_CXXFLAGS="$RELEASE_COMMON_FLAGS -std=c++17"
             DEBUG_CPPFLAGS="-DPIC"
-			RELEASE_CPPFLAGS="-DPIC"
+            RELEASE_CPPFLAGS="-DPIC"
             DEBUG_LDFLAGS="$opts"
             RELEASE_LDFLAGS="$opts"
 
@@ -108,7 +150,7 @@ pushd "$EPOXY_SOURCE_DIR"
                 CPPFLAGS="${CPPFLAGS:-} ${DEBUG_CPPFLAGS}" \
                 LDFLAGS="$DEBUG_LDFLAGS" \
                 meson "_build_debug" --prefix="${stage}" --libdir="${stage}/lib/debug" --bindir="${stage}/lib/debug" \
-                --optimization g --debug
+                    -Doptimization=g -Ddebug=true -Dtests=false
 
             pushd "_build_debug"
                 ninja
@@ -121,7 +163,7 @@ pushd "$EPOXY_SOURCE_DIR"
                 CPPFLAGS="${CPPFLAGS:-} ${RELEASE_CPPFLAGS}" \
                 LDFLAGS="$RELEASE_LDFLAGS" \
                 meson "_build_release" --prefix="${stage}" --libdir="${stage}/lib/release" --bindir="${stage}/lib/release" \
-                --optimization 3 --debug -Db_lto=true
+                    -Doptimization=3 -Ddebug=true -Db_ndebug=true -Dtests=false
 
             pushd "_build_release"
                 ninja
