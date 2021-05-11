@@ -29,7 +29,7 @@ source_environment_tempfile="$stage/source_environment.sh"
 "$autobuild" source_environment > "$source_environment_tempfile"
 . "$source_environment_tempfile"
 
-EPOXY_VERSION="1.5.4"
+EPOXY_VERSION="1.5.7"
 EPOXY_SOURCE_DIR="$top/libepoxy"
 
 VERSION_HEADER_FILE="$EPOXY_SOURCE_DIR/_build_release/src/config.h"
